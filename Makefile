@@ -2,10 +2,6 @@ TARGET := iphone:clang:14.4:13.0
 INSTALL_TARGET_PROCESSES = YouTube
 GO_EASY_ON_ME = 1
 
-ifeq ($(DEBUG),1)
-THEOS_PACKAGE_DIR_NAME = ../../../var/www/html/debs
-endif
-
 include $(THEOS)/makefiles/common.mk
 
 TWEAK_NAME = YouTubeDislikesReturn

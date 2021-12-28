@@ -26,18 +26,12 @@
 @property (nonatomic, strong, readwrite) YTIToggleButtonRenderer *toggleButtonRenderer;
 @end
 
-
 @interface YTSlimVideoDetailsActionView : UIView
 @property (nonatomic, strong, readwrite) YTIFormattedStringLabel *label;
 - (instancetype)initWithSlimMetadataButtonSupportedRenderer:(id)renderer;
 @end
 
-@interface YTILikeTarget : NSObject
-@property (nonatomic, copy, readwrite) NSString *videoId;
-@end
-
 @interface YTISlimMetadataToggleButtonRenderer : NSObject
-@property (nonatomic, strong, readwrite) YTILikeTarget *target;
 @property (nonatomic, strong, readwrite) YTIButtonSupportedRenderers *button;
 @end
 
@@ -45,4 +39,8 @@
 @property (nonatomic, strong, readwrite) YTISlimMetadataToggleButtonRenderer *slimMetadataToggleButtonRenderer;
 - (BOOL)slimButton_isDislikeButton;
 - (int)rendererOneOfCase;
+@end
+
+@interface YTLocalPlaybackController : NSObject
+- (NSString *)currentVideoID;
 @end

@@ -43,6 +43,15 @@ static void setDislikeCount(YTSlimVideoDetailsActionView *self, NSString *dislik
     });
 }
 
+YTLocalPlaybackController *playingVideoID;
+
+%hook YTLocalPlaybackController
+- (NSString *)currentVideoID {
+    playingVideoID = self;
+    return %orig;
+}
+%end
+
 %hook YTAppDelegate
 - (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
     NSLog(@"YouTube Dislikes Return Loaded Successfully");
@@ -65,8 +74,7 @@ static void setDislikeCount(YTSlimVideoDetailsActionView *self, NSString *dislik
         self.dislikeCount = -1;
         YTISlimMetadataButtonSupportedRenderers *renderer = [self valueForKey:@"_supportedRenderer"];
         if ([renderer slimButton_isDislikeButton]) {
-            YTISlimMetadataToggleButtonRenderer *meta = renderer.slimMetadataToggleButtonRenderer;
-            NSString *videoIdentifier = meta.target.videoId;
+            NSString *videoIdentifier = [playingVideoID currentVideoID];
             NSString *apiUrl = [NSString stringWithFormat:@"https://returnyoutubedislikeapi.com/votes?videoId=%@", videoIdentifier];
             NSURL *dataUrl = [NSURL URLWithString:apiUrl];
             NSURLRequest *apiRequest = [NSURLRequest requestWithURL:dataUrl];
@@ -77,10 +85,14 @@ static void setDislikeCount(YTSlimVideoDetailsActionView *self, NSString *dislik
                 if (error) {
                     setDislikeCount(self, @"Failed");
                 } else {
-                    NSString *dislikeCount = responseObject[@"dislikes"];
-                    self.dislikeCount = [dislikeCount longLongValue];
-                    NSString *dislikeCountShort = getNormalizedDislikes(dislikeCount);
-                    setDislikeCount(self, dislikeCountShort);
+                    NSString *dislikeCount = [NSString stringWithFormat:@"%@", [responseObject objectForKey:@"dislikes"]];
+                    if (dislikeCount != NULL) {
+                        self.dislikeCount = [dislikeCount longLongValue];
+                        NSString *dislikeCountShort = getNormalizedDislikes(dislikeCount);
+                        setDislikeCount(self, dislikeCountShort);
+                    } else {
+                        setDislikeCount(self, @"Failed");
+                    }
                 }
             }];
             [dataTask resume];
@@ -94,7 +106,7 @@ static void setDislikeCount(YTSlimVideoDetailsActionView *self, NSString *dislik
     if ([renderer slimButton_isDislikeButton]) {
         YTIToggleButtonRenderer *buttonRenderer = renderer.slimMetadataToggleButtonRenderer.button.toggleButtonRenderer;
         if (toggled) {
-            NSString *newDislikeCount = getNormalizedDislikes([@(self.dislikeCount + 1) stringValue]);
+            NSString *newDislikeCount = getNormalizedDislikes([@(self.dislikeCount) stringValue]);
             buttonRenderer.toggledText = [%c(YTIFormattedString) formattedStringWithString:newDislikeCount];
         } else {
             NSString *dislikeCount = getNormalizedDislikes([@(self.dislikeCount) stringValue]);

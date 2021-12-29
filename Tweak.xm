@@ -8,9 +8,6 @@
 @end
 
 static NSString *getNormalizedDislikes(NSString *dislikeCount) {
-    if (dislikeCount == nil) {
-        return @"Failed";
-    }
     NSUInteger digits = dislikeCount.length;
     NSString *dislikeCountShort;
     if (digits <= 3) {
@@ -105,12 +102,13 @@ YTLocalPlaybackController *playingVideoID;
     YTISlimMetadataButtonSupportedRenderers *renderer = [self valueForKey:@"_supportedRenderer"];
     if ([renderer slimButton_isDislikeButton]) {
         YTIToggleButtonRenderer *buttonRenderer = renderer.slimMetadataToggleButtonRenderer.button.toggleButtonRenderer;
+        // FIXME: Ideally, the tweak should refetch the dislike number
+        NSString *dislikeCount = getNormalizedDislikes([@(self.dislikeCount) stringValue]);
+        YTIFormattedString *formattedText = [%c(YTIFormattedString) formattedStringWithString:dislikeCount];
         if (toggled) {
-            NSString *newDislikeCount = getNormalizedDislikes([@(self.dislikeCount) stringValue]);
-            buttonRenderer.toggledText = [%c(YTIFormattedString) formattedStringWithString:newDislikeCount];
+            buttonRenderer.toggledText = formattedText;
         } else {
-            NSString *dislikeCount = getNormalizedDislikes([@(self.dislikeCount) stringValue]);
-            buttonRenderer.defaultText = [%c(YTIFormattedString) formattedStringWithString:dislikeCount];
+            buttonRenderer.defaultText = formattedText;
         }
     }
     %orig;

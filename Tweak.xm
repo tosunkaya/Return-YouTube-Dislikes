@@ -54,15 +54,6 @@ static void getDislikeFromVideoWithHandler(NSString *videoIdentifier, void (^han
     [dataTask resume];
 }
 
-YTLocalPlaybackController *playingVideoID;
-
-%hook YTLocalPlaybackController
-- (NSString *)currentVideoID {
-    playingVideoID = self;
-    return %orig;
-}
-%end
-
 %hook YTSlimVideoDetailsActionView
 %property (nonatomic, assign) NSInteger dislikeCount;
 + (YTSlimVideoDetailsActionView *)actionViewWithSlimMetadataButtonSupportedRenderer:(YTISlimMetadataButtonSupportedRenderers *)renderer withElementsContextBlock:(id)block {
@@ -78,8 +69,8 @@ YTLocalPlaybackController *playingVideoID;
         self.dislikeCount = -1;
         YTISlimMetadataButtonSupportedRenderers *renderer = [self valueForKey:@"_supportedRenderer"];
         if ([renderer slimButton_isDislikeButton]) {
-            NSString *videoIdentifier = [playingVideoID currentVideoID];
-            getDislikeFromVideoWithHandler(videoIdentifier, ^(NSString *dislikeCount) {
+            YTISlimMetadataToggleButtonRenderer *meta = renderer.slimMetadataToggleButtonRenderer;
+            getDislikeFromVideoWithHandler(meta.target.videoId, ^(NSString *dislikeCount) {
                 if (dislikeCount != nil) {
                     self.dislikeCount = [dislikeCount longLongValue];
                     NSString *dislikeCountShort = getNormalizedDislikes(dislikeCount);

@@ -63,13 +63,6 @@ YTLocalPlaybackController *playingVideoID;
 }
 %end
 
-%hook YTAppDelegate
-- (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
-    NSLog(@"YouTube Dislikes Return Loaded Successfully");
-    return %orig;
-}
-%end
-
 %hook YTSlimVideoDetailsActionView
 %property (nonatomic, assign) NSInteger dislikeCount;
 + (YTSlimVideoDetailsActionView *)actionViewWithSlimMetadataButtonSupportedRenderer:(YTISlimMetadataButtonSupportedRenderers *)renderer withElementsContextBlock:(id)block {

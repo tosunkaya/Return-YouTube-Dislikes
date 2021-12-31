@@ -8,7 +8,7 @@ TWEAK_NAME = YouTubeDislikesReturn
 YouTubeDislikesReturn_FILES = Tweak.xm $(shell find AFNetworking -name '*.m')
 YouTubeDislikesReturn_CFLAGS = -fobjc-arc
 YouTubeDislikesReturn_FRAMEWORKS = UIKit Foundation
-ARCHS = arm64 arm64e
+ARCHS = arm64
 
 include $(THEOS_MAKE_PATH)/tweak.mk
 include $(THEOS_MAKE_PATH)/aggregate.mk

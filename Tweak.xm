@@ -48,7 +48,7 @@ static void getDislikeFromVideoWithHandler(NSString *videoIdentifier, void (^han
     NSURLSessionConfiguration *dataConfiguration = [NSURLSessionConfiguration defaultSessionConfiguration];
     AFURLSessionManager *dataManager = [[AFURLSessionManager alloc] initWithSessionConfiguration:dataConfiguration];
     NSURLSessionDataTask *dataTask = [dataManager dataTaskWithRequest:apiRequest uploadProgress:nil downloadProgress:nil completionHandler:^(NSURLResponse *response, id responseObject, NSError *error) {
-        NSString *dislikeCount = error ? @"Failed" : [NSString stringWithFormat:@"%@", [responseObject objectForKey:@"dislikes"]];
+        NSString *dislikeCount = error ? nil : [NSString stringWithFormat:@"%@", [responseObject objectForKey:@"dislikes"]];
         handler(dislikeCount);
     }];
     [dataTask resume];

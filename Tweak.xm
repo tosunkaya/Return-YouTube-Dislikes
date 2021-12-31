@@ -7,30 +7,30 @@
 @property (nonatomic, assign) NSInteger dislikeCount;
 @end
 
+static NSString *getXPointYFormat(NSString *count, char c) {
+    char firstInt = [count characterAtIndex:0];
+    char secondInt = [count characterAtIndex:1];
+    if (secondInt == '0') {
+        return [NSString stringWithFormat:@"%c%c", firstInt, c];
+    }
+    return [NSString stringWithFormat:@"%c.%c%c", firstInt, secondInt, c];
+}
+
 static NSString *getNormalizedDislikes(NSString *dislikeCount) {
     NSUInteger digits = dislikeCount.length;
-    NSString *dislikeCountShort;
-    if (digits <= 3) {
-        dislikeCountShort = dislikeCount;
+    if (digits <= 3) { // 0 - 999
+        return dislikeCount;
     }
-    else if (digits == 4) {
-        NSString *firstInt = [dislikeCount substringWithRange:NSMakeRange(0, 1)];
-        NSString *secondInt = [dislikeCount substringWithRange:NSMakeRange(1, 1)];
-        dislikeCountShort = [NSString stringWithFormat:@"%@.%@K", firstInt, secondInt];
+    if (digits == 4) { // 1000 - 9999
+        return getXPointYFormat(dislikeCount, 'K');
     }
-    else if (digits <= 6) {
-        dislikeCountShort = [NSString stringWithFormat:@"%@K", [dislikeCount substringToIndex:digits - 3]];
+    if (digits <= 6) { // 10_000 - 999_999
+        return [NSString stringWithFormat:@"%@K", [dislikeCount substringToIndex:digits - 3]];
     }
-    else if (digits <= 8) {
-        dislikeCountShort = [NSString stringWithFormat:@"%@M", [dislikeCount substringToIndex:digits - 6]];
+    if (digits <= 9) { // 1_000_000 - 999_999_999
+        return [NSString stringWithFormat:@"%@M", [dislikeCount substringToIndex:digits - 6]];
     }
-    else if (digits == 9) {
-        dislikeCountShort = [NSString stringWithFormat:@"%@B", [dislikeCount substringToIndex:1]];
-    }
-    else {
-        dislikeCountShort = [NSString stringWithFormat:@"%@B", [dislikeCount substringToIndex:2]];
-    }
-    return dislikeCountShort;
+    return [NSString stringWithFormat:@"%@B", [dislikeCount substringToIndex:digits - 9]]; // 1_000_000_000+
 }
 
 static void setDislikeCount(YTSlimVideoDetailsActionView *self, NSString *dislikeCount) {
@@ -38,6 +38,20 @@ static void setDislikeCount(YTSlimVideoDetailsActionView *self, NSString *dislik
         [self.label setFormattedString:[%c(YTIFormattedString) formattedStringWithString:dislikeCount]];
         [self.label sizeToFit];
     });
+}
+
+static void getDislikeFromVideoWithHandler(NSString *videoIdentifier, void (^handler)(NSString *dislikeCount)) {
+    NSString *apiUrl = [NSString stringWithFormat:@"https://returnyoutubedislikeapi.com/votes?videoId=%@", videoIdentifier];
+    NSURL *dataUrl = [NSURL URLWithString:apiUrl];
+    NSURLRequest *apiRequest = [NSURLRequest requestWithURL:dataUrl];
+
+    NSURLSessionConfiguration *dataConfiguration = [NSURLSessionConfiguration defaultSessionConfiguration];
+    AFURLSessionManager *dataManager = [[AFURLSessionManager alloc] initWithSessionConfiguration:dataConfiguration];
+    NSURLSessionDataTask *dataTask = [dataManager dataTaskWithRequest:apiRequest uploadProgress:nil downloadProgress:nil completionHandler:^(NSURLResponse *response, id responseObject, NSError *error) {
+        NSString *dislikeCount = error ? @"Failed" : [NSString stringWithFormat:@"%@", [responseObject objectForKey:@"dislikes"]];
+        handler(dislikeCount);
+    }];
+    [dataTask resume];
 }
 
 YTLocalPlaybackController *playingVideoID;
@@ -72,27 +86,15 @@ YTLocalPlaybackController *playingVideoID;
         YTISlimMetadataButtonSupportedRenderers *renderer = [self valueForKey:@"_supportedRenderer"];
         if ([renderer slimButton_isDislikeButton]) {
             NSString *videoIdentifier = [playingVideoID currentVideoID];
-            NSString *apiUrl = [NSString stringWithFormat:@"https://returnyoutubedislikeapi.com/votes?videoId=%@", videoIdentifier];
-            NSURL *dataUrl = [NSURL URLWithString:apiUrl];
-            NSURLRequest *apiRequest = [NSURLRequest requestWithURL:dataUrl];
-
-            NSURLSessionConfiguration *dataConfiguration = [NSURLSessionConfiguration defaultSessionConfiguration];
-            AFURLSessionManager *dataManager = [[AFURLSessionManager alloc] initWithSessionConfiguration:dataConfiguration];
-            NSURLSessionDataTask *dataTask = [dataManager dataTaskWithRequest:apiRequest uploadProgress:nil downloadProgress:nil completionHandler:^(NSURLResponse *response, id responseObject, NSError *error) {
-                if (error) {
-                    setDislikeCount(self, @"Failed");
+            getDislikeFromVideoWithHandler(videoIdentifier, ^(NSString *dislikeCount) {
+                if (dislikeCount != nil) {
+                    self.dislikeCount = [dislikeCount longLongValue];
+                    NSString *dislikeCountShort = getNormalizedDislikes(dislikeCount);
+                    setDislikeCount(self, dislikeCountShort);
                 } else {
-                    NSString *dislikeCount = [NSString stringWithFormat:@"%@", [responseObject objectForKey:@"dislikes"]];
-                    if (dislikeCount != NULL) {
-                        self.dislikeCount = [dislikeCount longLongValue];
-                        NSString *dislikeCountShort = getNormalizedDislikes(dislikeCount);
-                        setDislikeCount(self, dislikeCountShort);
-                    } else {
-                        setDislikeCount(self, @"Failed");
-                    }
+                    setDislikeCount(self, @"Failed");
                 }
-            }];
-            [dataTask resume];
+        });
         }
     }
     return self;
@@ -112,5 +114,27 @@ YTLocalPlaybackController *playingVideoID;
         }
     }
     %orig;
+}
+%end
+
+%hook YTReelWatchLikesController
+- (void)updateLikeButtonWithRenderer:(YTILikeButtonRenderer *)renderer {
+    %orig(renderer);
+    getDislikeFromVideoWithHandler(renderer.target.videoId, ^(NSString *dislikeCount) {
+        if (dislikeCount != nil) {
+            NSString *formattedDislikeCount = getNormalizedDislikes(dislikeCount);
+            YTIFormattedString *formattedText = [%c(YTIFormattedString) formattedStringWithString:formattedDislikeCount];
+            if (renderer.hasDislikeCountText) {
+                renderer.dislikeCountText = formattedText;
+            }
+            if (renderer.hasDislikeCountWithDislikeText) {
+                renderer.dislikeCountWithDislikeText = formattedText;
+            }
+            if (renderer.hasDislikeCountWithUndislikeText) {
+                renderer.dislikeCountWithUndislikeText = formattedText;
+            }
+        }
+        %orig(renderer);
+    });
 }
 %end
